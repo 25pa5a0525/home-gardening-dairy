@@ -35,7 +35,39 @@ class GardenShell extends StatefulWidget {
 
 class _GardenShellState extends State<GardenShell> {
   int index = 0;
-  final pages = const [HomePage(), PlantsPage(), CalendarPage(), JournalPage()];
+  final plants = <PlantRecord>[
+    PlantRecord(
+      name: 'Sweet basil',
+      category: 'Herb',
+      planted: 'October 23',
+      emoji: '🌿',
+      notes:
+          'Loves a sunny windowsill. Pinch the tips to encourage bushy growth.',
+    ),
+    PlantRecord(
+      name: 'Cherry tomato',
+      category: 'Vegetable',
+      planted: 'October 17',
+      emoji: '🍅',
+      notes:
+          'Keep the soil evenly moist and give this plant plenty of sunlight.',
+    ),
+    PlantRecord(
+      name: 'Sunflower',
+      category: 'Flower',
+      planted: 'October 9',
+      emoji: '🌻',
+      notes: 'Growing tall in the brightest corner of the garden.',
+    ),
+    PlantRecord(
+      name: 'Mint',
+      category: 'Herb',
+      planted: 'November 1',
+      emoji: '🌱',
+      notes:
+          'Enjoys regular watering. Keep it in its own pot so it can spread happily.',
+    ),
+  ];
   final titles = const [
     'My garden',
     'My plants',
@@ -67,26 +99,42 @@ class _GardenShellState extends State<GardenShell> {
       ),
       actions: [
         IconButton(
-          onPressed: () => _notice(context, 'You’re all caught up!'),
+          onPressed: () => _showNotifications(context),
           icon: const Icon(Icons.notifications_none_rounded),
         ),
-        const Padding(
-          padding: EdgeInsets.only(right: 18),
-          child: CircleAvatar(
-            radius: 18,
-            backgroundColor: Color(0xFFDCE8D5),
-            child: Icon(Icons.person_outline, color: Color(0xFF31543D)),
+        Padding(
+          padding: const EdgeInsets.only(right: 18),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const ProfilePage())),
+            child: const CircleAvatar(
+              radius: 18,
+              backgroundColor: Color(0xFFDCE8D5),
+              child: Icon(Icons.person_outline, color: Color(0xFF31543D)),
+            ),
           ),
         ),
       ],
     ),
-    body: IndexedStack(index: index, children: pages),
+    body: IndexedStack(
+      index: index,
+      children: [
+        HomePage(
+          onSeeCalendar: () => setState(() => index = 2),
+          onAllPlants: () => setState(() => index = 1),
+          onOpenPlant: _openPlant,
+          onOpenTask: _openTask,
+        ),
+        PlantsPage(plants: plants, onOpenPlant: _openPlant),
+        CalendarPage(onOpenTask: _openTask),
+        JournalPage(onAdd: _addJournalEntry),
+      ],
+    ),
     floatingActionButton: index == 0
         ? FloatingActionButton.extended(
-            onPressed: () => _notice(
-              context,
-              'Planting a new seedling is a lovely place to start.',
-            ),
+            onPressed: _addJournalEntry,
             backgroundColor: const Color(0xFF28563E),
             foregroundColor: Colors.white,
             icon: const Icon(Icons.add_rounded),
@@ -125,10 +173,116 @@ class _GardenShellState extends State<GardenShell> {
       ],
     ),
   );
+
+  void _openPlant(PlantRecord plant) => Navigator.of(
+    context,
+  ).push(MaterialPageRoute(builder: (_) => PlantDetailPage(plant: plant)));
+  void _openTask(String title, String description) =>
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) =>
+              TaskDetailPage(title: title, description: description),
+        ),
+      );
+  Future<void> _addJournalEntry() async {
+    final entry = await showDialog<JournalRecord>(
+      context: context,
+      builder: (_) => const JournalEditorDialog(),
+    );
+    if (entry != null) setState(() => JournalPage.entries.insert(0, entry));
+  }
+
+  void _showNotifications(BuildContext context) => showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (context) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text(
+              'Garden reminders',
+              style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
+            ),
+            SizedBox(height: 16),
+            _NotificationRow(
+              icon: Icons.water_drop_rounded,
+              title: 'Water your plants',
+              detail: 'Basil, tomatoes and mint are ready today.',
+            ),
+            _NotificationRow(
+              icon: Icons.content_cut_rounded,
+              title: 'Prune your basil',
+              detail: 'Pinching the tips helps it grow fuller.',
+            ),
+            _NotificationRow(
+              icon: Icons.wb_sunny_outlined,
+              title: 'A bright day ahead',
+              detail: 'Your sunflower will enjoy a sunny spot.',
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _NotificationRow extends StatelessWidget {
+  const _NotificationRow({
+    required this.icon,
+    required this.title,
+    required this.detail,
+  });
+  final IconData icon;
+  final String title, detail;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 14),
+    child: Row(
+      children: [
+        Icon(icon, color: const Color(0xFF527B58)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+              Text(
+                detail,
+                style: const TextStyle(color: Color(0xFF788278), fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class PlantRecord {
+  PlantRecord({
+    required this.name,
+    required this.category,
+    required this.planted,
+    required this.emoji,
+    required this.notes,
+  });
+  final String name, category, planted, emoji, notes;
 }
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+  const HomePage({
+    super.key,
+    required this.onSeeCalendar,
+    required this.onAllPlants,
+    required this.onOpenPlant,
+    required this.onOpenTask,
+  });
+  final VoidCallback onSeeCalendar, onAllPlants;
+  final ValueChanged<PlantRecord> onOpenPlant;
+  final void Function(String, String) onOpenTask;
 
   @override
   Widget build(BuildContext context) => ListView(
@@ -211,9 +365,10 @@ class HomePage extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 26),
-      const _SectionHeading(
+      _SectionHeading(
         title: 'Today in your garden',
         action: 'See calendar',
+        onPressed: onSeeCalendar,
       ),
       const SizedBox(height: 12),
       _TaskCard(
@@ -222,6 +377,10 @@ class HomePage extends StatelessWidget {
         title: 'Water your plants',
         subtitle: '3 plants are ready for a drink',
         trailing: '10 min',
+        onTap: () => onOpenTask(
+          'Water your plants',
+          'Water basil, cherry tomatoes and mint until the soil is evenly moist. Check the top of the soil first and avoid leaving the pots in standing water.',
+        ),
       ),
       const SizedBox(height: 10),
       _TaskCard(
@@ -230,21 +389,39 @@ class HomePage extends StatelessWidget {
         title: 'Prune basil leaves',
         subtitle: 'Keep your herbs bushy & happy',
         trailing: '5 min',
+        onTap: () => onOpenTask(
+          'Prune basil leaves',
+          'Pinch or snip the top pair of leaves just above a leaf node. This encourages your basil to grow fuller. Remove any yellow leaves too.',
+        ),
       ),
       const SizedBox(height: 26),
-      const _SectionHeading(title: 'Growing right now', action: 'All plants'),
+      _SectionHeading(
+        title: 'Growing right now',
+        action: 'All plants',
+        onPressed: onAllPlants,
+      ),
       const SizedBox(height: 12),
       SizedBox(
         height: 188,
         child: ListView(
           scrollDirection: Axis.horizontal,
-          children: const [
+          children: [
             _PlantCard(
               emoji: '🍅',
               name: 'Cherry tomato',
               detail: 'Vegetable · 24 days',
               progress: .72,
               tint: Color(0xFFF3E6D8),
+              onTap: () => onOpenPlant(
+                PlantRecord(
+                  name: 'Cherry tomato',
+                  category: 'Vegetable',
+                  planted: 'October 17',
+                  emoji: '🍅',
+                  notes:
+                      'Keep the soil evenly moist and give this plant plenty of sunlight.',
+                ),
+              ),
             ),
             SizedBox(width: 12),
             _PlantCard(
@@ -253,6 +430,16 @@ class HomePage extends StatelessWidget {
               detail: 'Herb · 18 days',
               progress: .48,
               tint: Color(0xFFE5EEDC),
+              onTap: () => onOpenPlant(
+                PlantRecord(
+                  name: 'Sweet basil',
+                  category: 'Herb',
+                  planted: 'October 23',
+                  emoji: '🌿',
+                  notes:
+                      'Loves a sunny windowsill. Pinch the tips to encourage bushy growth.',
+                ),
+              ),
             ),
             SizedBox(width: 12),
             _PlantCard(
@@ -261,6 +448,15 @@ class HomePage extends StatelessWidget {
               detail: 'Flower · 32 days',
               progress: .86,
               tint: Color(0xFFF4EDCE),
+              onTap: () => onOpenPlant(
+                PlantRecord(
+                  name: 'Sunflower',
+                  category: 'Flower',
+                  planted: 'October 9',
+                  emoji: '🌻',
+                  notes: 'Growing tall in the brightest corner of the garden.',
+                ),
+              ),
             ),
           ],
         ),
@@ -341,8 +537,13 @@ class _MiniStat extends StatelessWidget {
 }
 
 class _SectionHeading extends StatelessWidget {
-  const _SectionHeading({required this.title, required this.action});
+  const _SectionHeading({
+    required this.title,
+    required this.action,
+    required this.onPressed,
+  });
   final String title, action;
+  final VoidCallback onPressed;
   @override
   Widget build(BuildContext context) => Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -356,7 +557,7 @@ class _SectionHeading extends StatelessWidget {
         ),
       ),
       TextButton(
-        onPressed: () => _notice(context, '$action coming up in your garden'),
+        onPressed: onPressed,
         child: Text(
           action,
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
@@ -373,57 +574,66 @@ class _TaskCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.trailing,
+    this.onTap,
   });
   final IconData icon;
   final Color color;
   final String title, subtitle, trailing;
+  final VoidCallback? onTap;
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-    ),
-    child: Row(
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: .13),
-            borderRadius: BorderRadius.circular(14),
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(18),
+    child: Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: .13),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color),
           ),
-          child: Icon(icon, color: color),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF2E4034),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF2E4034),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF858E85)),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF858E85),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        Text(
-          trailing,
-          style: const TextStyle(
-            color: Color(0xFF788278),
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
+          Text(
+            trailing,
+            style: const TextStyle(
+              color: Color(0xFF788278),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }
@@ -435,64 +645,76 @@ class _PlantCard extends StatelessWidget {
     required this.detail,
     required this.progress,
     required this.tint,
+    required this.onTap,
   });
   final String emoji, name, detail;
   final double progress;
   final Color tint;
+  final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => Container(
-    width: 158,
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          height: 74,
-          width: double.infinity,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: tint,
-            borderRadius: BorderRadius.circular(14),
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(20),
+    child: Container(
+      width: 158,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 74,
+            width: double.infinity,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: tint,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(emoji, style: const TextStyle(fontSize: 38)),
           ),
-          child: Text(emoji, style: const TextStyle(fontSize: 38)),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: 13,
-            color: Color(0xFF2E4034),
+          const SizedBox(height: 10),
+          Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+              color: Color(0xFF2E4034),
+            ),
           ),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          detail,
-          style: const TextStyle(fontSize: 10, color: Color(0xFF899188)),
-        ),
-        const Spacer(),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 5,
-            color: const Color(0xFF69905D),
-            backgroundColor: const Color(0xFFE9EEE6),
+          const SizedBox(height: 3),
+          Text(
+            detail,
+            style: const TextStyle(fontSize: 10, color: Color(0xFF899188)),
           ),
-        ),
-      ],
+          const Spacer(),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 5,
+              color: const Color(0xFF69905D),
+              backgroundColor: const Color(0xFFE9EEE6),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
 
 class PlantsPage extends StatelessWidget {
-  const PlantsPage({super.key});
+  const PlantsPage({
+    super.key,
+    required this.plants,
+    required this.onOpenPlant,
+  });
+  final List<PlantRecord> plants;
+  final ValueChanged<PlantRecord> onOpenPlant;
   @override
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.all(20),
@@ -511,43 +733,24 @@ class PlantsPage extends StatelessWidget {
         style: TextStyle(color: Color(0xFF788278)),
       ),
       const SizedBox(height: 20),
-      const _TaskCard(
-        icon: Icons.spa_rounded,
-        color: Color(0xFF69905D),
-        title: 'Sweet basil',
-        subtitle: 'Herb · Planted Oct 23',
-        trailing: '🌿',
-      ),
-      const SizedBox(height: 12),
-      const _TaskCard(
-        icon: Icons.local_florist_rounded,
-        color: Color(0xFFD49248),
-        title: 'Cherry tomato',
-        subtitle: 'Vegetable · Planted Oct 17',
-        trailing: '🍅',
-      ),
-      const SizedBox(height: 12),
-      const _TaskCard(
-        icon: Icons.filter_vintage_rounded,
-        color: Color(0xFF8B78AE),
-        title: 'Sunflower',
-        subtitle: 'Flower · Planted Oct 9',
-        trailing: '🌻',
-      ),
-      const SizedBox(height: 12),
-      const _TaskCard(
-        icon: Icons.eco_rounded,
-        color: Color(0xFF5B9CA0),
-        title: 'Mint',
-        subtitle: 'Herb · Planted Nov 1',
-        trailing: '🌱',
-      ),
+      for (final plant in plants) ...[
+        _TaskCard(
+          icon: Icons.eco_rounded,
+          color: const Color(0xFF69905D),
+          title: plant.name,
+          subtitle: '${plant.category} · Planted ${plant.planted}',
+          trailing: plant.emoji,
+          onTap: () => onOpenPlant(plant),
+        ),
+        const SizedBox(height: 12),
+      ],
     ],
   );
 }
 
 class CalendarPage extends StatelessWidget {
-  const CalendarPage({super.key});
+  const CalendarPage({super.key, required this.onOpenTask});
+  final void Function(String, String) onOpenTask;
   @override
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.all(20),
@@ -566,33 +769,49 @@ class CalendarPage extends StatelessWidget {
         style: TextStyle(color: Color(0xFF788278)),
       ),
       const SizedBox(height: 20),
-      const _CalendarItem(
+      _CalendarItem(
         day: 'MON 10',
         title: 'Water your plants',
         note: 'Basil, tomatoes & mint',
         icon: Icons.water_drop_rounded,
         tint: Color(0xFFE3F0EF),
+        onTap: () => onOpenTask(
+          'Water your plants',
+          'Water basil, tomatoes and mint until their soil is evenly moist.',
+        ),
       ),
-      const _CalendarItem(
+      _CalendarItem(
         day: 'TUE 11',
         title: 'Check soil moisture',
         note: 'Sunflower · 2 minutes',
         icon: Icons.touch_app_rounded,
         tint: Color(0xFFECEFE5),
+        onTap: () => onOpenTask(
+          'Check soil moisture',
+          'Press a finger about two centimeters into the soil. Water if it feels dry at that depth.',
+        ),
       ),
-      const _CalendarItem(
+      _CalendarItem(
         day: 'WED 12',
         title: 'Feed the tomatoes',
         note: 'A little organic fertilizer',
         icon: Icons.compost_rounded,
         tint: Color(0xFFF3E8D8),
+        onTap: () => onOpenTask(
+          'Feed the tomatoes',
+          'Use a balanced organic fertilizer according to its label, then water the soil around the plant.',
+        ),
       ),
-      const _CalendarItem(
+      _CalendarItem(
         day: 'FRI 14',
         title: 'Write a garden note',
         note: 'Notice what changed this week',
         icon: Icons.edit_note_rounded,
         tint: Color(0xFFF1E8F0),
+        onTap: () => onOpenTask(
+          'Write a garden note',
+          'Capture a small observation: what changed this week, what is thriving, or what you want to try next.',
+        ),
       ),
     ],
   );
@@ -605,73 +824,103 @@ class _CalendarItem extends StatelessWidget {
     required this.note,
     required this.icon,
     required this.tint,
+    required this.onTap,
   });
   final String day, title, note;
   final IconData icon;
   final Color tint;
+  final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
-    child: Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 52,
-            child: Text(
-              day,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF71806F),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 52,
+              child: Text(
+                day,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF71806F),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: tint,
-              borderRadius: BorderRadius.circular(13),
+            const SizedBox(width: 10),
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: tint,
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(icon, color: const Color(0xFF42634A)),
             ),
-            child: Icon(icon, color: const Color(0xFF42634A)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF2E4034),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF2E4034),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  note,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF858E85),
+                  const SizedBox(height: 4),
+                  Text(
+                    note,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF858E85),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );
 }
 
 class JournalPage extends StatelessWidget {
-  const JournalPage({super.key});
+  const JournalPage({super.key, required this.onAdd});
+  final VoidCallback onAdd;
+  static final List<JournalRecord> entries = [
+    JournalRecord(
+      date: 'NOVEMBER 8 · SATURDAY',
+      title: 'First tiny tomato!',
+      body:
+          'Spotted the first little green tomato today. I can’t believe it started from such a tiny seed.',
+      emoji: '🍅',
+    ),
+    JournalRecord(
+      date: 'NOVEMBER 3 · MONDAY',
+      title: 'A sunny afternoon',
+      body:
+          'Moved the basil closer to the window. It already looks perkier and smells amazing.',
+      emoji: '☀️',
+    ),
+    JournalRecord(
+      date: 'OCTOBER 23 · THURSDAY',
+      title: 'A new beginning',
+      body:
+          'Planted sweet basil seeds in the terracotta pot. Here’s to fresh pesto someday!',
+      emoji: '🌱',
+    ),
+  ];
   @override
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.all(20),
@@ -690,39 +939,38 @@ class JournalPage extends StatelessWidget {
         style: TextStyle(color: Color(0xFF788278)),
       ),
       const SizedBox(height: 20),
-      const _JournalCard(
-        date: 'NOVEMBER 8 · SATURDAY',
-        title: 'First tiny tomato!',
-        body:
-            'Spotted the first little green tomato today. I can’t believe it started from such a tiny seed.',
-        emoji: '🍅',
+      Align(
+        alignment: Alignment.centerLeft,
+        child: FilledButton.icon(
+          onPressed: onAdd,
+          icon: const Icon(Icons.add),
+          label: const Text('Write a diary entry'),
+        ),
       ),
-      const _JournalCard(
-        date: 'NOVEMBER 3 · MONDAY',
-        title: 'A sunny afternoon',
-        body:
-            'Moved the basil closer to the window. It already looks perkier and smells amazing.',
-        emoji: '☀️',
-      ),
-      const _JournalCard(
-        date: 'OCTOBER 23 · THURSDAY',
-        title: 'A new beginning',
-        body:
-            'Planted sweet basil seeds in the terracotta pot. Here’s to fresh pesto someday!',
-        emoji: '🌱',
-      ),
+      const SizedBox(height: 16),
+      for (final entry in entries)
+        _JournalCard(
+          entry: entry,
+          onEdit: () async {
+            final updated = await showDialog<JournalRecord>(
+              context: context,
+              builder: (_) => JournalEditorDialog(entry: entry),
+            );
+            if (updated != null) {
+              final i = entries.indexOf(entry);
+              if (i >= 0) entries[i] = updated;
+              (context as Element).markNeedsBuild();
+            }
+          },
+        ),
     ],
   );
 }
 
 class _JournalCard extends StatelessWidget {
-  const _JournalCard({
-    required this.date,
-    required this.title,
-    required this.body,
-    required this.emoji,
-  });
-  final String date, title, body, emoji;
+  const _JournalCard({required this.entry, required this.onEdit});
+  final JournalRecord entry;
+  final VoidCallback onEdit;
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 14),
@@ -732,40 +980,228 @@ class _JournalCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
       ),
+      child: InkWell(
+        onTap: onEdit,
+        borderRadius: BorderRadius.circular(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(entry.emoji, style: const TextStyle(fontSize: 24)),
+                const SizedBox(width: 10),
+                Text(
+                  entry.date,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    letterSpacing: .8,
+                    color: Color(0xFF849082),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              entry.title,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF2E4034),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              entry.body,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.5,
+                color: Color(0xFF788278),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class JournalRecord {
+  JournalRecord({
+    required this.date,
+    required this.title,
+    required this.body,
+    required this.emoji,
+  });
+  final String date;
+  final String title;
+  final String body;
+  final String emoji;
+}
+
+class JournalEditorDialog extends StatefulWidget {
+  const JournalEditorDialog({super.key, this.entry});
+  final JournalRecord? entry;
+  @override
+  State<JournalEditorDialog> createState() => _JournalEditorDialogState();
+}
+
+class _JournalEditorDialogState extends State<JournalEditorDialog> {
+  late final title = TextEditingController(text: widget.entry?.title ?? '');
+  late final body = TextEditingController(text: widget.entry?.body ?? '');
+  @override
+  void dispose() {
+    title.dispose();
+    body.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.entry == null ? 'New diary entry' : 'Edit diary entry'),
+    content: SizedBox(
+      width: 360,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: title,
+            decoration: const InputDecoration(labelText: 'Title'),
+          ),
+          TextField(
+            controller: body,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'What happened in your garden?',
+            ),
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () {
+          if (title.text.trim().isEmpty || body.text.trim().isEmpty) return;
+          Navigator.pop(
+            context,
+            JournalRecord(
+              date: widget.entry?.date ?? 'NOVEMBER 10 · MONDAY',
+              title: title.text.trim(),
+              body: body.text.trim(),
+              emoji: widget.entry?.emoji ?? '🌱',
+            ),
+          );
+        },
+        child: const Text('Save'),
+      ),
+    ],
+  );
+}
+
+class PlantDetailPage extends StatelessWidget {
+  const PlantDetailPage({super.key, required this.plant});
+  final PlantRecord plant;
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text(plant.name)),
+    body: ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Center(
+          child: Container(
+            width: 130,
+            height: 130,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE5EEDC),
+              borderRadius: BorderRadius.circular(32),
+            ),
+            child: Text(plant.emoji, style: const TextStyle(fontSize: 72)),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          plant.name,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '${plant.category} · Planted ${plant.planted}',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Color(0xFF788278)),
+        ),
+        const SizedBox(height: 28),
+        const Text(
+          'About this plant',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          plant.notes,
+          style: const TextStyle(height: 1.5, color: Color(0xFF647365)),
+        ),
+        const SizedBox(height: 24),
+        const Text(
+          'Care checklist',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+        ),
+        const CheckboxListTile(
+          value: false,
+          onChanged: null,
+          title: Text('Check the soil moisture'),
+          contentPadding: EdgeInsets.zero,
+        ),
+        const CheckboxListTile(
+          value: false,
+          onChanged: null,
+          title: Text('Look for new growth'),
+          contentPadding: EdgeInsets.zero,
+        ),
+      ],
+    ),
+  );
+}
+
+class TaskDetailPage extends StatelessWidget {
+  const TaskDetailPage({
+    super.key,
+    required this.title,
+    required this.description,
+  });
+  final String title, description;
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Garden task')),
+    body: Padding(
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(emoji, style: const TextStyle(fontSize: 24)),
-              const SizedBox(width: 10),
-              Text(
-                date,
-                style: const TextStyle(
-                  fontSize: 10,
-                  letterSpacing: .8,
-                  color: Color(0xFF849082),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
           Text(
             title,
+            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            description,
             style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF2E4034),
+              fontSize: 16,
+              height: 1.6,
+              color: Color(0xFF647365),
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            body,
-            style: const TextStyle(
-              fontSize: 13,
-              height: 1.5,
-              color: Color(0xFF788278),
+          const Spacer(),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.check),
+              label: const Text('Mark as done'),
             ),
           ),
         ],
@@ -774,11 +1210,54 @@ class _JournalCard extends StatelessWidget {
   );
 }
 
-void _notice(BuildContext context, String message) =>
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key});
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Gardener profile')),
+    body: ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        const Center(
+          child: CircleAvatar(
+            radius: 42,
+            backgroundColor: Color(0xFFDCE8D5),
+            child: Icon(
+              Icons.person_outline,
+              size: 42,
+              color: Color(0xFF31543D),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        const Text(
+          'Garden friend',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 23, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Growing something wonderful',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Color(0xFF788278)),
+        ),
+        const SizedBox(height: 28),
+        const ListTile(
+          leading: Icon(Icons.eco_outlined),
+          title: Text('Plants in my garden'),
+          trailing: Text('12'),
+        ),
+        const ListTile(
+          leading: Icon(Icons.menu_book_outlined),
+          title: Text('Diary entries'),
+          trailing: Text('3'),
+        ),
+        const ListTile(
+          leading: Icon(Icons.notifications_outlined),
+          title: Text('Garden reminders'),
+          subtitle: Text('Watering and care tips'),
+        ),
+      ],
+    ),
+  );
+}
